@@ -35,7 +35,7 @@ class AppointmentServiceImplTest {
         service = new AppointmentServiceImpl(repository);
     }
 
-    static Stream<Object[]> appointmentData() {
+    static Stream<Object[]> Data() {
         return Stream.of(
                 new Object[]{
                         AppointmentRequest.builder()
@@ -92,7 +92,7 @@ class AppointmentServiceImplTest {
     }
 
     @ParameterizedTest
-    @MethodSource("appointmentData")
+    @MethodSource("Data")
     void testCreate(AppointmentRequest request,
                     AppointmentModel expectedModel) {
         when(repository.save(any())).thenReturn(expectedModel);
