@@ -23,7 +23,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     @Override
     public AppointmentResponse create(AppointmentRequest request) {
         AppointmentModel appointment = AppointmentMapper.toEntity(request);
-        return AppointmentMapper.toResponse(repository.saveAndFlush(appointment));
+        return AppointmentMapper.toResponse(repository.save(appointment));
     }
 
     @Override
@@ -41,7 +41,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         appointmentModel.setDepartment(request.getDepartment());
         appointmentModel.setAppointmentDate(request.getAppointmentDate());
         appointmentModel.setStatus(request.getStatus());
-        return AppointmentMapper.toResponse(repository.saveAndFlush(appointmentModel));
+        return AppointmentMapper.toResponse(repository.save(appointmentModel));
     }
 
     @Override
@@ -49,7 +49,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         AppointmentModel appointmentModel = repository.findByPatientName(patientName)
                 .orElseThrow(() -> new RuntimeException("Appointment not found for: " + patientName));
         appointmentModel.setStatus(AppointmentStatus.valueOf(newStatus.toUpperCase()));
-        return AppointmentMapper.toResponse(repository.saveAndFlush(appointmentModel));
+        return AppointmentMapper.toResponse(repository.save(appointmentModel));
     }
 
     @Override
