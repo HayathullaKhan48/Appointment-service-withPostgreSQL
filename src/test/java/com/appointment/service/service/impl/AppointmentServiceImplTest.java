@@ -6,7 +6,6 @@ import com.appointment.service.repository.AppointmentRepository;
 import com.appointment.service.request.AppointmentRequest;
 import com.appointment.service.response.AppointmentResponse;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Answers;
@@ -35,7 +34,7 @@ class AppointmentServiceImplTest {
         service = new AppointmentServiceImpl(repository);
     }
 
-    static Stream<Object[]> Data() {
+    static Stream<Object[]> createData() {
         return Stream.of(
                 new Object[]{
                         AppointmentRequest.builder()
@@ -70,31 +69,13 @@ class AppointmentServiceImplTest {
                                 .appointmentDate("25/11/2025")
                                 .status(AppointmentStatus.SCHEDULED)
                                 .build()
-                },
-                new Object[]{
-                        AppointmentRequest.builder()
-                                .patientName("Nayazi Khan")
-                                .doctorName("Dr. Smith")
-                                .department("Neurology")
-                                .appointmentDate("15/12/2025")
-                                .status(AppointmentStatus.COMPLETED)
-                                .build(),
-                        AppointmentModel.builder()
-                                .id(3L)
-                                .patientName("Nayazi Khan")
-                                .doctorName("Dr. Smith")
-                                .department("Neurology")
-                                .appointmentDate("15/12/2025")
-                                .status(AppointmentStatus.COMPLETED)
-                                .build()
                 }
         );
     }
 
     @ParameterizedTest
-    @MethodSource("Data")
-    void testCreate(AppointmentRequest request,
-                    AppointmentModel expectedModel) {
+    @MethodSource("createData")
+    void testCreate(AppointmentRequest request, AppointmentModel expectedModel) {
         when(repository.save(any())).thenReturn(expectedModel);
 
         AppointmentResponse actualResponse = service.create(request);
@@ -106,10 +87,11 @@ class AppointmentServiceImplTest {
         assertThat(actualResponse.getDepartment()).isEqualTo(expectedModel.getDepartment());
         assertThat(actualResponse.getAppointmentDate()).isEqualTo(expectedModel.getAppointmentDate());
         assertThat(actualResponse.getStatus()).isEqualTo(expectedModel.getStatus());
+
+        verify(repository, times(1)).save(any());
     }
 
-    @Test
-    void testGetAppointments() {
+    static Stream<Object[]> getAppointmentsData() {
         AppointmentModel model1 = AppointmentModel.builder()
                 .id(1L)
                 .patientName("Hayathulla Khan")
@@ -128,26 +110,30 @@ class AppointmentServiceImplTest {
                 .status(AppointmentStatus.SCHEDULED)
                 .build();
 
-        when(repository.findAll()).thenReturn(Arrays.asList(model1, model2));
+        return Stream.<Object[]>of(new Object[]{Arrays.asList(model1, model2)});
+    }
+
+    @ParameterizedTest
+    @MethodSource("getAppointmentsData")
+    void testGetAppointments(List<AppointmentModel> models) {
+        when(repository.findAll()).thenReturn(models);
+
         List<AppointmentResponse> responses = service.getAppointments();
 
-        assertThat(responses).hasSize(2);
-        assertThat(responses.get(0).getPatientName()).isEqualTo("Hayathulla Khan");
-        assertThat(responses.get(1).getPatientName()).isEqualTo("Arzoo Khanam");
-
+        assertThat(responses).hasSize(models.size());
+        assertThat(responses.get(0).getPatientName()).isEqualTo(models.get(0).getPatientName());
         verify(repository, times(1)).findAll();
     }
 
-    @Test
-    void testUpdate() {
-        AppointmentRequest request = AppointmentRequest.builder()
+    static Stream<Object[]> updateData() {
+        AppointmentRequest updateRequest1 = AppointmentRequest.builder()
                 .doctorName("Dr. Arzoo")
                 .department("Dermatology")
                 .appointmentDate("20/10/2025")
                 .status(AppointmentStatus.CANCELLED)
                 .build();
 
-        AppointmentModel existingModel = AppointmentModel.builder()
+        AppointmentModel existing1 = AppointmentModel.builder()
                 .id(1L)
                 .patientName("Hayathulla Khan")
                 .doctorName("Dr. Saira")
@@ -156,21 +142,26 @@ class AppointmentServiceImplTest {
                 .status(AppointmentStatus.SCHEDULED)
                 .build();
 
-        when(repository.findByPatientName("Hayathulla Khan")).thenReturn(Optional.of(existingModel));
+        return Stream.<Object[]>of(new Object[]{"Hayathulla Khan", updateRequest1, existing1});
+    }
+
+    @ParameterizedTest
+    @MethodSource("updateData")
+    void testUpdate(String patientName, AppointmentRequest request, AppointmentModel existingModel) {
+        when(repository.findByPatientName(patientName)).thenReturn(Optional.of(existingModel));
         when(repository.save(any(AppointmentModel.class))).thenAnswer(i -> i.getArgument(0));
 
-        AppointmentResponse response = service.update("Hayathulla Khan", request);
+        AppointmentResponse response = service.update(patientName, request);
 
-        assertThat(response.getDoctorName()).isEqualTo("Dr. Arzoo");
-        assertThat(response.getDepartment()).isEqualTo("Dermatology");
-        assertThat(response.getStatus()).isEqualTo(AppointmentStatus.CANCELLED);
+        assertThat(response.getDoctorName()).isEqualTo(request.getDoctorName());
+        assertThat(response.getDepartment()).isEqualTo(request.getDepartment());
+        assertThat(response.getStatus()).isEqualTo(request.getStatus());
 
-        verify(repository, times(1)).findByPatientName("Hayathulla Khan");
+        verify(repository, times(1)).findByPatientName(patientName);
         verify(repository, times(1)).save(existingModel);
     }
 
-    @Test
-    void testUpdateAppointmentStatus() {
+    static Stream<Object[]> updateStatusData() {
         AppointmentModel existingModel = AppointmentModel.builder()
                 .id(1L)
                 .patientName("Hayathulla Khan")
@@ -180,39 +171,49 @@ class AppointmentServiceImplTest {
                 .status(AppointmentStatus.SCHEDULED)
                 .build();
 
-        when(repository.findByPatientName(anyString())).thenReturn(Optional.of(existingModel));
+        return Stream.<Object[]>of(new Object[]{"Hayathulla Khan", "COMPLETED", existingModel});
+    }
+
+    @ParameterizedTest
+    @MethodSource("updateStatusData")
+    void testUpdateAppointmentStatus(String patientName, String status, AppointmentModel existingModel) {
+        when(repository.findByPatientName(patientName)).thenReturn(Optional.of(existingModel));
         when(repository.save(any(AppointmentModel.class))).thenAnswer(i -> i.getArgument(0));
 
-        AppointmentResponse response = service.updateAppointmentStatus("Hayathulla Khan", "COMPLETED");
+        AppointmentResponse response = service.updateAppointmentStatus(patientName, status);
 
         assertThat(response.getStatus()).isEqualTo(AppointmentStatus.COMPLETED);
-
-        verify(repository, times(1)).findByPatientName(anyString());
+        verify(repository, times(1)).findByPatientName(patientName);
         verify(repository, times(1)).save(existingModel);
     }
 
-    @Test
-    void testDeleteByPatientName_found() {
-        AppointmentModel existingModel = AppointmentModel.builder()
+    static Stream<Object[]> deleteData() {
+        AppointmentModel existing = AppointmentModel.builder()
                 .id(1L)
                 .patientName("Hayathulla Khan")
                 .build();
 
-        when(repository.findByPatientName("Hayathulla Khan")).thenReturn(Optional.of(existingModel));
-
-        String result = service.deleteByPatientName("Hayathulla Khan");
-
-        assertThat(result).isEqualTo("Appointment deleted for patient: Hayathulla Khan");
-        verify(repository, times(1)).delete(existingModel);
+        return Stream.of(
+                new Object[]{"Hayathulla Khan", existing, "Appointment deleted for patient: Hayathulla Khan"},
+                new Object[]{"Unknown", null, "No appointment found for patient: Unknown"}
+        );
     }
 
-    @Test
-    void testDeletedByPatientName_NotFound(){
-        when(repository.findByPatientName("Unknown Patient Name")).thenReturn(Optional.empty());
+    @ParameterizedTest
+    @MethodSource("deleteData")
+    void testDeleteByPatientName(String patientName, AppointmentModel existingModel, String expectedMsg) {
+        Optional<AppointmentModel> existingOpt = Optional.ofNullable(existingModel);
+        when(repository.findByPatientName(patientName)).thenReturn(existingOpt);
 
-        String result = service.deleteByPatientName("Unknown Patient Name");
+        String result = service.deleteByPatientName(patientName);
 
-        assertThat(result).isEqualTo("No appointment found for patient: Unknown Patient Name");
-        verify(repository, never()).delete(any(AppointmentModel.class));
+        assertThat(result).isEqualTo(expectedMsg);
+
+        if (existingOpt.isPresent()) {
+            verify(repository, times(1)).delete(existingOpt.get());
+        } else {
+            verify(repository, never()).delete(any(AppointmentModel.class));
+        }
     }
+
 }
